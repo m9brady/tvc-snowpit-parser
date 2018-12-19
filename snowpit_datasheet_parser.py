@@ -91,9 +91,9 @@ class SnowPitSheet():
 
     def __str__(self):
         summary = f"{self.meta['location']} | " + \
-            f"Site: {self.meta['site']} | " + \
             f"Timestamp: {self.meta['timestamp']} | " + \
-            f"Data Rows: {len(self.data['ssa'])}"
+            f"Data Rows: {len(self.data['ssa'])} | " + \
+            f"Site: {self.meta['site']}"
         return summary
 
     @property
@@ -345,12 +345,15 @@ def extract_pit_data(sheet):
         'Val[V]': pd.Series(ssa_vals, dtype='float32')
     })
     # Set the <instance>.pit property to be a multi-indexed dataframe
-    return pd.concat({
+    master_df = pd.concat({
         'density': density,
         'temperature': temperature,
         'stratigraphy': stratigraphy,
         'ssa': specific_surface_area,
     }, axis=1)
+    # get rid of NaN rows 
+    master_df = master_df.dropna(how='all')
+    return master_df
 
 
 def parse_pit_datetime(date, time):
