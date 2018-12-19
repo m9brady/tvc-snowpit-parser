@@ -15,7 +15,7 @@ conda activate py3-tvc
 >>> print(pit)
 ```
 ```
-TVC 2018 | Site: site name | Timestamp: 2018-10-12T15:34:00 | Data Rows: 24
+TVC 2018 | Timestamp: 2018-10-12T15:34:00 | Data Rows: 24 | Site: site name 
 ```
 The `pit.meta` property is a dictionary containing various metadata fields that may be of interest:
 ```
