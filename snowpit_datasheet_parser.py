@@ -1,7 +1,7 @@
 # python3
 # conda create -n py3-tvc python=3 pandas openpyxl matplotlib shapely -c defaults
 # conda activate py3-tvc
-
+from io import BytesIO
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -79,7 +79,10 @@ class SnowPitSheet():
             return
         # data-only forces any Excel cell-functions to return their result value
         try:
-            wb = load_workbook(str(excel_file), read_only=True, data_only=True)
+            # hack to get around openpyxl not properly closing a file
+            with excel_file.open('rb') as f:
+                in_mem_data = BytesIO(f.read())
+            wb = load_workbook(in_mem_data, read_only=True, data_only=True)
         except:
             raise IOError('Error reading %s' % str(excel_file.absolute()))
             return
@@ -252,7 +255,7 @@ def extract_metadata(workbook):
                 except:
                     veg_height = 'Unreadable'
                 veg_data[veg_class] = veg_height
-                tmp_idx += 1
+            tmp_idx += 1
         except:
             pass
     # tree canopy
