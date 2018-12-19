@@ -352,7 +352,7 @@ def extract_pit_data(sheet):
         'ssa': specific_surface_area,
     }, axis=1)
     # get rid of NaN rows 
-    master_df = master_df.dropna(how='all')
+    master_df = master_df.dropna(how='all').reset_index(drop=True)
     return master_df
 
 
