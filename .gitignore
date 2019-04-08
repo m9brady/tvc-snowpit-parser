@@ -106,3 +106,4 @@ venv.bak/
 # Visual Studio Code
 .vscode
 *.code-workspace
+*.xlsx

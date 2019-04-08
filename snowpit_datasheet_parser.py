@@ -10,7 +10,7 @@ import pandas as pd
 from dateutil.parser import parse
 from openpyxl import load_workbook
 from openpyxl.workbook.workbook import Workbook
-from openpyxl.worksheet.read_only import ReadOnlyWorksheet
+from openpyxl.worksheet._read_only import ReadOnlyWorksheet
 from shapely.geometry import Point
 from shapely.wkt import dumps
 
