@@ -1,10 +1,6 @@
-# python3
-# conda create -n py3-tvc python=3 pandas openpyxl matplotlib shapely -c defaults
-# conda activate py3-tvc
 from io import BytesIO
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from dateutil.parser import parse
@@ -17,10 +13,10 @@ from shapely.wkt import dumps
 
 # constants for metadata look-up tables
 PIT_LUT = {
-    'Location': 'B2', 'Surveyors': 'M2', 'Site': 'B4',
-    'Latitude': 'H2', 'Longitude': 'H4', 'Pit_ID': 'B6',
-    'Total_Depth': 'F6', 'UTM_Zone': 'H6', 'Slope': 'K6',
-    'Date': 'M6', 'Time': 'O6', 'Notes': 'R1'
+    'Location': 'A2', 'Surveyors': 'L2', 'Site': 'A4',
+    'Latitude': 'H2', 'Longitude': 'H4', 'Pit_ID': 'A6', 'Cutter Size': 'C6',
+    'Total_Depth': 'E6', 'UTM_Zone': 'H6', 'Slope': 'J6',
+    'Date': 'L6', 'Time': 'N6', 'Notes': 'Q1'
 }
 META_LUT = {
     'Location': 'A2', 'Surveyors': 'E2', 'Site': 'A4',
@@ -48,6 +44,7 @@ GRNDROUGH = ['Smooth', 'Rough', 'Rugged']
 GRNDVEG = ['Bare', 'Grass', 'Shrub', 'Deadfall']
 TREECANOPY = ['No Trees', 'Sparse (5-20%)', 'Open (20-70%)', 'Closed (>70%)']
 
+PD_STRING = pd.StringDtype()
 
 class SnowPitSheet():
     '''
@@ -167,13 +164,13 @@ def extract_metadata(workbook):
     meta_sheet = workbook['METADATA']
     # only update the meta dict if there isn't already 
     # a value pulled from the PIT worksheet
-    if meta_dict['location'] == None:
+    if meta_dict['location'] is None:
         meta_dict['location'] = meta_sheet[META_LUT['Location']].value
-    if meta_dict['surveyors'] == None:
+    if meta_dict['surveyors'] is None:
         meta_dict['surveyors'] = meta_sheet[META_LUT['Surveyors']].value
-    if meta_dict['site'] == None:
+    if meta_dict['site'] is None:
         meta_dict['site'] =  meta_sheet[META_LUT['Site']].value
-    if meta_dict['timestamp'] == None:
+    if meta_dict['timestamp'] is None:
         meta_dict['timestamp'] = parse_pit_datetime(
             date=meta_sheet[META_LUT['Date']].value,
             time=meta_sheet[META_LUT['Time']].value
@@ -297,54 +294,53 @@ def extract_pit_data(sheet):
     # openpyxl index slicing doesn't follow the rules of python list slicing...
     actual_max_row = sheet.max_row - 1
     # Density data
-    dens_hagt = np.array([cell[0].value for cell in sheet[f'B10:B{actual_max_row}'] if cell[0].value not in ['Veg', 'NA']], dtype='float32')
-    dens_hagb = np.array([cell[0].value for cell in sheet[f'D10:D{actual_max_row}'] if cell[0].value not in ['Veg', 'NA']], dtype='float32')
-    dens_profA = np.array([cell[0].value for cell in sheet[f'E10:E{actual_max_row}'] if cell[0].value not in ['Veg', 'NA']], dtype='float32')
-    dens_profB = np.array([cell[0].value for cell in sheet[f'F10:F{actual_max_row}'] if cell[0].value not in ['Veg', 'NA']], dtype='float32')
+    dens_hagt = np.array([cell[0].value for cell in sheet[f'A10:A{actual_max_row}'] if cell[0].value not in ['Veg', 'NA'] and cell[0].value is not None], dtype='float32')
+    dens_hagb = np.array([cell[0].value for cell in sheet[f'B10:B{actual_max_row}'] if cell[0].value not in ['Veg', 'NA'] and cell[0].value is not None], dtype='float32')
+    dens_profA = np.array([cell[0].value for cell in sheet[f'C10:C{actual_max_row}'] if cell[0].value not in ['Veg', 'NA'] and cell[0].value is not None], dtype='float32')
+    dens_profB = np.array([cell[0].value for cell in sheet[f'D10:D{actual_max_row}'] if cell[0].value not in ['Veg', 'NA'] and cell[0].value is not None], dtype='float32')
     density = pd.DataFrame(data={
         'HeightAboveGround_Top[cm]': pd.Series(dens_hagt, dtype='float32'),
         'HeightAboveGround_Bot[cm]': pd.Series(dens_hagb, dtype='float32'),
-        'DensityProfile_A[kg/m^3]': pd.Series(dens_profA, dtype='float32'),
-        'DensityProfile_B[kg/m^3]': pd.Series(dens_profB, dtype='float32')
+        'DensityProfile_A[g]': pd.Series(dens_profA, dtype='float32'),
+        'DensityProfile_B[g]': pd.Series(dens_profB, dtype='float32')
     })
     # Temperature data
-    temp_hag = np.array([cell[0].value for cell in sheet[f'G10:G{actual_max_row}'] if cell[0].value not in ['Veg', 'NA']], dtype='float32')
-    temp_vals = np.array([cell[0].value for cell in sheet[f'H10:H{actual_max_row}'] if cell[0].value not in ['Veg', 'NA']], dtype='float32')
+    temp_hag = np.array([cell[0].value for cell in sheet[f'E10:E{actual_max_row}'] if cell[0].value not in ['Veg', 'NA']], dtype='float32')
+    temp_profA = np.array([cell[0].value for cell in sheet[f'F10:F{actual_max_row}'] if cell[0].value not in ['Veg', 'NA']], dtype='float32')
+    temp_profB = np.array([cell[0].value for cell in sheet[f'G10:G{actual_max_row}'] if cell[0].value not in ['Veg', 'NA']], dtype='float32')
     temperature = pd.DataFrame(data={
-        'HeightAboveGround[cm]': pd.Series(temp_hag, dtype='float32'),
-        'Temperature[C]': pd.Series(temp_vals, dtype='float32')
+        'HeightAboveGround_Top[cm]': pd.Series(temp_hag, dtype='float32'),
+        'TemperatureProfile_A[C]': pd.Series(temp_profA, dtype='float32'),
+        'TemperatureProfile_B[C]': pd.Series(temp_profB, dtype='float32')
     })
-    # Stratigraphy data ** 2 rows merged per cell value in xlsx sheet! **
-    strat_hagt = np.array([cell[0].value for cell in sheet[f'I10:I{actual_max_row}'][::2] if cell[0].value not in ['Veg', 'NA']], dtype='float32')
-    strat_hagb = np.array([cell[0].value for cell in sheet[f'K10:K{actual_max_row}'][::2] if cell[0].value not in ['Veg', 'NA']], dtype='float32')
-    strat_gs_min = np.array([cell[0].value for cell in sheet[f'L10:L{actual_max_row}'][::2] if cell[0].value not in ['Veg', 'NA']], dtype='float32')
-    strat_gs_max = np.array([cell[0].value for cell in sheet[f'M10:M{actual_max_row}'][::2] if cell[0].value not in ['Veg', 'NA']], dtype='float32')
-    strat_gs_avg = np.array([cell[0].value for cell in sheet[f'N10:N{actual_max_row}'][::2] if cell[0].value not in ['Veg', 'NA']], dtype='float32')
-    strat_gt = [cell[0].value for cell in sheet[f'O10:O{actual_max_row}'][::2] if cell[0].value not in ['Veg', 'NA']]
-    strat_gp = [cell[0].value for cell in sheet[f'P10:P{actual_max_row}'][::2] if cell[0].value not in ['Veg', 'NA']]
-    strat_sw = [cell[0].value for cell in sheet[f'Q10:Q{actual_max_row}'][::2] if cell[0].value not in ['Veg', 'NA']]
-    strat_notes = [cell[0].value for cell in sheet[f'V10:V{actual_max_row}'][::2] if cell[0].value not in ['Veg', 'NA']]
+    # Stratigraphy data
+    strat_hagt = np.array([cell[0].value for cell in sheet[f'H10:H{actual_max_row}'][::2] if cell[0].value not in ['Veg', 'NA']], dtype='float32')
+    strat_hagb = np.array([cell[0].value for cell in sheet[f'I10:I{actual_max_row}'][::2] if cell[0].value not in ['Veg', 'NA']], dtype='float32')
+    strat_gs_min = np.array([cell[0].value for cell in sheet[f'J10:J{actual_max_row}'][::2] if cell[0].value not in ['Veg', 'NA']], dtype='float32')
+    strat_gs_max = np.array([cell[0].value for cell in sheet[f'K10:K{actual_max_row}'][::2] if cell[0].value not in ['Veg', 'NA']], dtype='float32')
+    strat_gs_avg = np.array([cell[0].value for cell in sheet[f'L10:L{actual_max_row}'][::2] if cell[0].value not in ['Veg', 'NA']], dtype='float32')
+    strat_gt = [cell[0].value for cell in sheet[f'M10:M{actual_max_row}'][::2] if cell[0].value not in ['Veg', 'NA']]
+    strat_gto = [cell[0].value for cell in sheet[f'N10:N{actual_max_row}'][::2] if cell[0].value not in ['Veg', 'NA']]
+    strat_sw = [cell[0].value for cell in sheet[f'O10:O{actual_max_row}'][::2] if cell[0].value not in ['Veg', 'NA']]
+    strat_notes = [cell[0].value for cell in sheet[f'P10:P{actual_max_row}'][::2] if cell[0].value not in ['Veg', 'NA']]
     stratigraphy = pd.DataFrame(data={
         'HeightAboveGround_Top[cm]': pd.Series(strat_hagt, dtype='float32'),
         'HeightAboveGround_Bot[cm]': pd.Series(strat_hagb, dtype='float32'),
         'GrainSize_min[mm]': pd.Series(strat_gs_min, dtype='float32'),
         'GrainSize_max[mm]': pd.Series(strat_gs_max, dtype='float32'),
         'GrainSize_mean[mm]': pd.Series(strat_gs_avg, dtype='float32'),
-        'GrainType': pd.Series(strat_gt, dtype=object),
-        'GrainPhoto': pd.Series(strat_gp, dtype=object),
-        'SnowWetness': pd.Series(strat_sw, dtype=object),
-        'Comments': pd.Series(strat_notes, dtype=object)
+        'GrainType': pd.Series(strat_gt, dtype=PD_STRING),
+        'GrainTypeOther': pd.Series(strat_gto, dtype=PD_STRING),
+        'SnowWetness': pd.Series(strat_sw, dtype=PD_STRING),
+        'Comments': pd.Series(strat_notes, dtype=PD_STRING)
     })
-    # need to re-index because of the 2-rows-per-cell-value in stratigraphy
-    strat_idx = pd.Index([i for i in range(0, len(sheet[f'I10:I{actual_max_row}']), 2)])
-    stratigraphy.index = strat_idx
     # Specific Surface Area data
+    ssa_hard = [cell[0].value for cell in sheet[f'Q10:Q{actual_max_row}'] if cell[0].value not in ['Veg', 'NA']]
     ssa_hagt = np.array([cell[0].value for cell in sheet[f'R10:R{actual_max_row}'] if cell[0].value not in ['Veg', 'NA']], dtype='float32')
-    ssa_hagb = np.array([cell[0].value for cell in sheet[f'T10:T{actual_max_row}'] if cell[0].value not in ['Veg', 'NA']], dtype='float32')
     ssa_vals = np.array([cell[0].value for cell in sheet[f'U10:U{actual_max_row}'] if cell[0].value not in ['Veg', 'NA']], dtype='float32')
     specific_surface_area = pd.DataFrame(data={
+        'Hardness': pd.Series(ssa_hard, dtype=PD_STRING),
         'HeightAboveGround_Top[cm]': pd.Series(ssa_hagt, dtype='float32'),
-        'HeightAboveGround_Bot[cm]': pd.Series(ssa_hagb, dtype='float32'),
         'Val[V]': pd.Series(ssa_vals, dtype='float32')
     })
     # Set the <instance>.pit property to be a multi-indexed dataframe
@@ -363,6 +359,9 @@ def parse_pit_datetime(date, time):
     '''
     just in case the date fields are filled out by orangutans, 
     we take care when parsing the timestamp
+
+    NB: we don't handle timezones since it assumes too much from the
+    data-entry perspective
     '''
     # sometimes the excel date field won't be preformatted as Date-type
     if isinstance(date, str):
@@ -387,20 +386,19 @@ if __name__ == '__main__':
     '''
     demo 
     '''
-    test_xlsx = './demo/Pit_DDMMYY_SS_PP_V2.xlsx'
+    test_xlsx = './demo/Pit_SiteName_SubSiteName_YYYYMMDD.xlsx'
     foo = SnowPitSheet(test_xlsx)
     # fancy-pants string method overriding
     print(foo)
-    print('\n')
-    for key in foo.meta:
-        print(f'{key}:    {foo.meta[key]}')
-    print('\n')
+    # dumping metadata
+    for key, value in foo.meta.items():
+        print(f'{key}: {value}')
+    # describing the dataframe
     print(foo.data.info())
-    print('\n')
     # possible to use .loc to get multiple columns belonging to different "levels"
+    # e.g. all the heightaboveground Top obs for density, temperature, stratigraphy, ssa:
     print(foo.data.loc[:, (slice(None), 'HeightAboveGround_Top[cm]')])
-    print('\n')
     # can also treat each level ['ssa', 'density', 'temperature', 'stratigraphy'] as a property of the larger dataframe
     print(foo.data.density.columns)
-    print('\n')
-    print(foo.data.density['DensityProfile_A[kg/m^3]'].head(5))
+    # dumping first 5 rows of density profile A
+    print(foo.data.density['DensityProfile_A[g]'].head(5))
